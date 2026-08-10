@@ -1,0 +1,12 @@
+[package]
+name = "host-lint-openwrt"
+version = "0.19.0"
+edition = "2021"
+description = "OpenWrt package style pack for host-lint: the measured style manuals as a checkable corpus"
+license = "Unlicense"
+
+[dependencies]
+host-lint = { path = ".." }
+
+[dev-dependencies]
+proptest = "1.5"

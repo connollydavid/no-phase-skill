@@ -10,7 +10,11 @@ license = "Unlicense"
 # default-members lists both so a bare `cargo build` produces the pack binary
 # too — a root-package workspace would otherwise build only the root.
 [workspace]
-members = ["host-lint-ffmpeg"]
+members = ["host-lint-ffmpeg", "host-lint-openwrt"]
+# host-lint-openwrt is a member but NOT a default member while its lanes are being
+# built (plan/0081): the canonical artifact is what a bare `cargo build --release`
+# produces, and adding a binary to that set would change the hash `--verify-build`
+# re-derives. It joins default-members with its first working lane.
 default-members = [".", "host-lint-ffmpeg"]
 
 [dependencies]

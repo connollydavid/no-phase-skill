@@ -156,6 +156,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "host-lint-openwrt"
+version = "0.19.0"
+dependencies = [
+ "host-lint",
+ "proptest",
+]
+
+[[package]]
 name = "id-arena"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
