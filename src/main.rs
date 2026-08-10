@@ -22,10 +22,22 @@ fn repo_root() -> String {
             // inside the store and drop the ignore list and LEXICON there
             // (host-lint#25).
             match fs::read_to_string(dir.join("gitdir")) {
-                Ok(target) => Path::new(target.trim())
-                    .parent()
-                    .and_then(|p| p.to_str())
-                    .map(String::from),
+                Ok(target) => {
+                    let t = Path::new(target.trim());
+                    // The `gitdir` file may name the worktree's `.git` link with a
+                    // RELATIVE path — which is what `software --materialize` writes,
+                    // so a bare store stays portable. A relative target is relative
+                    // to GIT_DIR, never to the process's working directory; resolving
+                    // it against the cwd walked out of the tree entirely, so the
+                    // ignore list and the LEXICON were silently not found and every
+                    // sanctioned fixture flagged. Only visible inside a hook, because
+                    // only git sets GIT_DIR.
+                    let abs = if t.is_absolute() { t.to_path_buf() } else { dir.join(t) };
+                    abs.parent().map(|p| {
+                        fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf())
+                    })
+                    .and_then(|p| p.to_str().map(String::from))
+                }
                 Err(_) => dir.parent().and_then(|p| p.to_str()).map(String::from),
             }
         })

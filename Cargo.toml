@@ -14,7 +14,7 @@ members = ["host-lint-ffmpeg"]
 default-members = [".", "host-lint-ffmpeg"]
 
 [dependencies]
-host-grammar = { git = "https://github.com/connollydavid/host-grammar", rev = "7f73dfa9c332d6d4f623dfe59caa7437491287a2" }
+host-grammar = { git = "https://github.com/connollydavid/host-grammar", rev = "e5ac04cbf8b220786e6e06e65de08e28426e9dab" }
 
 # `cargo kani` sets cfg(kani) for the #[cfg(kani)] proof harnesses in src/lib.rs.
 # Declare it a known cfg so the normal build doesn't warn. Lints don't affect

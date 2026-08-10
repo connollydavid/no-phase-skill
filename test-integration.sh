@@ -887,6 +887,47 @@ errs commit --message "$CVDIR/absent.txt"
 errs commit --message "$CVDIR/msg.txt" --diff "$CVDIR/absent-diff.txt"
 rm -rf "$CVDIR"
 
+# --- .host-lintignore survives a linked worktree whose gitdir link is RELATIVE ---
+#
+# Only git sets GIT_DIR, so this path is reachable only from inside a hook. A
+# linked worktree's <store>/worktrees/<name>/gitdir names the worktree's `.git`
+# link, and `software --materialize` writes that name RELATIVE so the store stays
+# portable. Resolving a relative target against the process's working directory
+# walked out of the tree, the ignore list was silently not found, and every
+# sanctioned fixture flagged — turning a clean commit into a wall of tells.
+WTDIR=$(mktemp -d)
+# $BINARY may be relative to the repo root, and this case runs from a temp tree.
+ABS_BINARY=$(cd "$(dirname "$BINARY")" && pwd)/$(basename "$BINARY")
+(
+    cd "$WTDIR" || exit 1
+    git init -q --bare store.git
+    git -C store.git config user.email t@example.com
+    git -C store.git config user.name T
+    mkdir -p seed && cd seed && git init -q .
+    git config user.email t@example.com && git config user.name T
+    printf 'fixtures/\n' > .host-lintignore
+    mkdir -p fixtures && printf 'phase 1 ships\n' > fixtures/tells.md
+    git add -A && git commit -qm "seed the tree"
+    git remote add origin ../store.git && git push -q origin HEAD:refs/heads/main
+) >/dev/null 2>&1
+(
+    cd "$WTDIR" || exit 1
+    git -C store.git worktree add -q ../wt main 2>/dev/null
+    # Force the relative form materialize writes, whatever git chose.
+    printf '../../../wt/.git\n' > store.git/worktrees/wt/gitdir
+) >/dev/null 2>&1
+if [ -d "$WTDIR/wt" ]; then
+    rc=0
+    ( cd "$WTDIR/wt" && GIT_DIR="$WTDIR/store.git/worktrees/wt" \
+        sh -c 'git show ":fixtures/tells.md" | "$0" --stdin-as fixtures/tells.md' "$ABS_BINARY" ) \
+        >/dev/null 2>&1 || rc=$?
+    [ "$rc" -eq 0 ] && ok "relative worktree gitdir: .host-lintignore honored under GIT_DIR" \
+                    || bad "relative worktree gitdir (want rc=0, got $rc): ignore list lost"
+else
+    bad "relative worktree gitdir: could not build the worktree fixture"
+fi
+rm -rf "$WTDIR"
+
 echo "=== Results ==="
 echo "Passed: $PASS / $TOTAL"
 echo "Failed: $FAIL / $TOTAL"

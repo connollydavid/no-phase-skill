@@ -5,7 +5,7 @@ use host_lint::{
     parse_lexicon_line, parse_unit_directive, path_ignored, normalize_for_restate,
     restated_comment_sentences, scan_prose_text, scan_text,
     scan_text_with_allow, scan_text_with_allow_strict, split_sentences, validate_lexicon_entry,
-    LexiconEntry, Severity, WARN_NOUNS,
+    LexiconEntry, Severity, FLAG_TERMS, WARN_NOUNS, WARN_ORDINAL_TERMS,
 };
 use proptest::prelude::*;
 use std::fs;
@@ -410,9 +410,19 @@ proptest! {
         major in 0..100u32, minor in 0..100u32
     ) {
         // "NT 3.1", "SDK 2.1": an all-caps product/version designator, not a code.
-        // Exclude the filing-system warn-nouns (e.g. "WI" == "wi"): those are
-        // codes, not designators, and warn by design (see filing_noun_with_numeral_warns).
-        prop_assume!(!WARN_NOUNS.contains(&designator.to_ascii_lowercase().as_str()));
+        // The generator draws arbitrary all-caps tokens and the vocabulary matches
+        // case-insensitively, so every list the tool knows has to be assumed out, not
+        // just the filing-system warn-nouns (e.g. "WI" == "wi"). `[A-Z]{2,5}` also
+        // reaches "BOX", "LEG", "LAP", "WAVE" in FLAG_TERMS and "ERA", "EPOCH",
+        // "BATCH" in WARN_ORDINAL_TERMS, each of which warns by design. Excluding
+        // only WARN_NOUNS left the property asserting that real vocabulary is silent,
+        // so it failed whenever proptest happened to draw one — a red suite on a
+        // released version, found by drawing "ERA" (host-lint#26 sweep). The tool was
+        // right; the property was wrong.
+        let lc = designator.to_ascii_lowercase();
+        prop_assume!(!WARN_NOUNS.contains(&lc.as_str()));
+        prop_assume!(!FLAG_TERMS.contains(&lc.as_str()));
+        prop_assume!(!WARN_ORDINAL_TERMS.contains(&lc.as_str()));
         let line = format!("runs on {} {}.{}", designator, major, minor);
         prop_assert!(check_warn(&line).is_none(), "line: {}", line);
     }
@@ -894,6 +904,39 @@ fn prose_lexicon_masks_a_trope_within_a_declared_phrase() {
     // The surviving flag is the standalone `tapestry`, not the one inside the phrase:
     // it sits at the second occurrence's column (surgical at the word boundary).
     assert_eq!(masked[0].col, undeclared[1].col);
+}
+
+// The regression the sibling test was written to sidestep. A declaration is scoped
+// to a phrase, so its blast radius must be that phrase; before the fix, a phrase at
+// column one blanked to four leading spaces, the markdown extractor read that as an
+// indented code block, and the whole line was dropped — the standalone occurrence
+// with it, silently (connollydavid/host-lint#26). The fixture that caught this in
+// the field only differed by opening with "The ".
+#[test]
+fn prose_lexicon_at_column_one_masks_the_phrase_not_the_line() {
+    let line = "Apache Tapestry logs to disk; a second tapestry runs nightly.";
+    let undeclared = prose_one(line, "doc.md", &[]);
+    assert_eq!(undeclared.len(), 2, "both occurrences flag with no LEXICON");
+
+    let masked = prose_one(line, "doc.md", &["apache tapestry"]);
+    assert_eq!(
+        masked.len(),
+        1,
+        "declaring the column-one phrase must not clear the standalone occurrence"
+    );
+    assert_eq!(
+        masked[0].col, undeclared[1].col,
+        "the survivor is the standalone `tapestry`, at its own column"
+    );
+}
+
+// Plain (non-markdown) prose never had the indent problem, because there is no block
+// structure to corrupt. Pinned so the markdown fix cannot regress the plain path.
+#[test]
+fn prose_lexicon_at_column_one_is_unchanged_for_plain_text() {
+    let line = "Apache Tapestry logs to disk; a second tapestry runs nightly.";
+    assert_eq!(prose_one(line, "stdin", &[]).len(), 2);
+    assert_eq!(prose_one(line, "stdin", &["apache tapestry"]).len(), 1);
 }
 
 #[test]

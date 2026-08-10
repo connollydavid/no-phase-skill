@@ -8,3 +8,4 @@ cc 3d61d7752f2d654f02922de89e47df4d913809156dd4dd748570695e20251e64 # shrinks to
 cc 4e4726daf32725127c787587a83fc1a5becba5498875403872007492081c2475 # shrinks to major = 100
 cc fabc86c6c6c6e6eacb25132e14d92c372591a2258540b7021dbd0df37fa8e97a # shrinks to term = "phase", roman = "II"
 cc 11aedc8352352288c4b2914ce941d9ae1df6a1c78cfd9241d4d1af8cc723994e # shrinks to term = "phase", word = "six"
+cc 7f2c6e26a452824c5b0749e4d79fc05db34636b012b0ef5fd519f53bd9282862 # shrinks to designator = "ERA", major = 0, minor = 0

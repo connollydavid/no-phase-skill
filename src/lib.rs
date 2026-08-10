@@ -1498,8 +1498,16 @@ pub fn scan_prose_text(input: &str, source: &str, allow_lc: &[String], matches: 
     // both the per-tell scan and the document density score, so a declared phrase
     // contributes to neither.
     let masked = mask_allowed(input, allow_lc);
+    // The markdown path must not mask before the parse. Blanking a phrase declared at
+    // column one leaves four or more leading spaces, which the extractor reads as an
+    // indented code block, and the whole line is dropped along with every unrelated
+    // tell on it — silently, with nothing in the verdict saying a line went missing.
+    // Block structure is a property of what the author wrote, so it is decided from
+    // the unmasked input and the mask is applied only inside the prose the structural
+    // pass kept (host-lint#26). `masked` is still what the offset map below reads,
+    // and `mask_allowed` is byte-length preserving, so the two stay in step.
     let tells = if markdown {
-        host_grammar::scan_prose_markdown(&masked)
+        host_grammar::scan_prose_markdown_masked(input, &|s| mask_allowed(s, allow_lc))
     } else {
         host_grammar::scan_prose_parallel(&masked)
     };
