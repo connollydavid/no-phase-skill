@@ -105,6 +105,11 @@ libs/boost
 **List features.** `libs/boost` continues into 31 bulleted library names, and `utils/mstflint`
 into an indented "Package Contents:" tree. `DEPENDS` and the file list already carry this.
 
+**Restate `DEPENDS`.** A `Requires libfoo, libbar` sentence copies the field it mirrors, and
+the copy is the one that goes stale when the depends change. The metadata is queryable:
+`apk query --fields depends` prints the depends the package carries, so the prose adds a second
+place to edit and nothing to read. See [Dependency queries](#dependency-queries).
+
 Four shorter prohibitions:
 
 - **A URL in the body.** `URL:=` is the field for it. The one tolerated exception is a pointer to
@@ -168,7 +173,12 @@ The shape is consistent: name the software, verb, what it does, stop.
 - [ ] One or two lines, wrapped under 80 columns
 - [ ] Present tense, describes the software
 - [ ] Ends with a full stop
-- [ ] No `CONFIG_*`, no version number, no feature inventory, no URL, no "This package…"
+- [ ] No `CONFIG_*`
+- [ ] No version number
+- [ ] No feature inventory
+- [ ] No restated `DEPENDS`
+- [ ] No URL
+- [ ] No "This package…" opening
 
 ---
 
@@ -247,4 +257,18 @@ p90 16. The opening word is the package's own name in 32.1% of deduped blocks.
 Five of the 1240 deduped blocks mention `CONFIG_*`, `menuconfig`, "built with", "built without"
 or "this build", and every dated one predates 2020. Tabs and unwrapped lines are the two forms
 that were once common and have since died out; the rest were always rare. Version numbers in
-prose and feature inventories were not counted, and rest on the cited cases alone.
+prose and feature inventories were not counted, and rest on the cited cases alone. Restated
+depends were not counted either; that prohibition rests on the resolver measurement below.
+
+### Dependency queries
+
+Measured 2026-08-14 against apk 3.0.5, the resolver a 25.12 release runs. A package built
+through the SDK carries its depends in its own metadata, the `depends:` argument of the
+`apk mkpkg` call the build log shows. An index built from such packages with `apk mkndx`
+answers `apk query --fields depends` with exactly those depends, normalised to the installable
+name: `+libusb-1.0` in `DEPENDS` prints as `libusb-1.0-0`. `--recursive` prints the closure the
+depends pull in. The default query output carries name, version, description, arch, license,
+origin, url and size, and not the depends; the `--fields` flag adds them.
+
+A description that restates the depends therefore copies data the reader can query, and the two
+part ways at the next change to `DEPENDS`.

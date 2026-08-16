@@ -11,7 +11,7 @@ revision of the same artifact, and re-record the digest and the read date in the
 
 | File | Artifact | Read | Measured against |
 |---|---|---|---|
-| `openwrt-description-style.md` | `ce7751ab-8a1a-4cfc-9151-90211f3b5cf1` | 2026-08-10 | `1d40ad929a` on `master`, dated 2026-06-07 |
+| `openwrt-description-style.md` | `ce7751ab-8a1a-4cfc-9151-90211f3b5cf1` | 2026-08-16 | `1d40ad929a` on `master`, dated 2026-06-07; apk 3.0.5 resolver behaviour, 2026-08-14 |
 | `openwrt-comment-style.md` | `4001c454-7f67-4a37-a839-24c1e50f5a48` | 2026-08-10 | `1d40ad929a` on `master`, dated 2026-06-07 |
 | `openwrt-package-commit-style.md` | `23ea5e7b-ca74-4007-b3ee-c8514f110ba4` | 2026-08-10 | full history of openwrt/packages, 27197 non-merge commits |
 | `openwrt-pr-style.md` | `1e7cb641-b46b-4daa-8fae-79506a8c47d7` | 2026-08-10 | 5039 merged pull requests, and a targeted sample of 683 |
@@ -19,7 +19,7 @@ revision of the same artifact, and re-record the digest and the read date in the
 Digests as vendored:
 
 ```
-002cca1a150549398ee14a5dc97cbc7520e9ee4b7687ee23f61eab4b6fd33572  openwrt-description-style.md
+8bc8f3c53001f369aca1cd710ded4072c24907c9aa09ae3c7c6078e511c52103  openwrt-description-style.md
 661a0ae31c98d167d8b729247f786debe8ea90155ab05095e73f302b83971611  openwrt-comment-style.md
 1106c598e5c24f2367b4ddc62d454bd7088bc50ab84508e33761aa154e725229  openwrt-package-commit-style.md
 0fff7d6b21b84949a67e6c7ab722bc31d45f72281c4a54d3ba56fb77db40db84  openwrt-pr-style.md

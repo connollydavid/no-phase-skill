@@ -23,7 +23,7 @@ pub struct Manual {
 
 pub const DESCRIPTION: Manual = Manual {
     name: "openwrt-description-style.md",
-    sha256: "002cca1a150549398ee14a5dc97cbc7520e9ee4b7687ee23f61eab4b6fd33572",
+    sha256: "8bc8f3c53001f369aca1cd710ded4072c24907c9aa09ae3c7c6078e511c52103",
     text: include_str!("../fixtures/manuals/openwrt-description-style.md"),
 };
 
