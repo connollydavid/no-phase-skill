@@ -373,7 +373,23 @@ fn run_series(args: &[String]) -> ! {
         });
     }
 
-    let findings = series::check(&commits);
+    // Files the base tree already provides: the provider rule exempts them,
+    // because a series that merely consumes libavutil/mem.h has no ordering
+    // obligation about it. The base is the range's start; an unparseable
+    // range yields an empty set, which is the old behavior.
+    let base_files: std::collections::HashSet<String> = range
+        .split_once("..")
+        .and_then(|(base, _)| {
+            let base = base.trim_end_matches('^');
+            if base.is_empty() {
+                return None;
+            }
+            git(&["ls-tree", "-r", "--name-only", base]).ok()
+        })
+        .map(|s| s.split_whitespace().map(str::to_string).collect())
+        .unwrap_or_default();
+
+    let findings = series::check_over(&commits, &base_files);
     let mode = config::load(std::path::Path::new(&repo))
         .map(|c| c.mode)
         .unwrap_or(config::Mode::Advise);
@@ -586,6 +602,15 @@ fn run_msg(args: &[String]) -> ! {
     let tracker = args.iter().any(|a| a == "--require-tracker");
     let file = args.iter().find(|a| !a.starts_with("--"));
 
+    // A rev range runs the lane over every commit message in it, the shape
+    // a series review wants; a plain path is the single-message form the
+    // hook path uses.
+    if let Some(f) = file {
+        if f.contains("..") {
+            run_msg_range(f, signoff, tracker);
+        }
+    }
+
     let text = match file {
         Some(f) => match fs::read_to_string(f) {
             Ok(s) => s,
@@ -621,6 +646,53 @@ fn run_msg(args: &[String]) -> ! {
             _ => "warn",
         };
         println!("{label}: {} — {}", f.rule, f.detail);
+    }
+    process::exit(verdict(blocking, mode));
+}
+
+/// The message lane over a rev range: every commit message, oldest first,
+/// with findings labelled by commit.
+fn run_msg_range(range: &str, signoff: bool, tracker: bool) -> ! {
+    let git = |a: &[&str]| -> Option<String> {
+        let o = process::Command::new("git").args(a).output().ok()?;
+        if !o.status.success() {
+            return None;
+        }
+        Some(String::from_utf8_lossy(&o.stdout).into_owned())
+    };
+    let Some(ids) = git(&["rev-list", "--reverse", "--no-merges", range]) else {
+        eprintln!("host-lint-ffmpeg: {range} names no commits");
+        process::exit(2);
+    };
+    let ids: Vec<&str> = ids.split_whitespace().collect();
+    if ids.is_empty() {
+        eprintln!("host-lint-ffmpeg: {range} names no commits");
+        process::exit(2);
+    }
+    let mode = config::load(std::path::Path::new("."))
+        .map(|c| c.mode)
+        .unwrap_or(config::Mode::Advise);
+    let mut blocking = false;
+    let mut total = 0;
+    for id in &ids {
+        let Some(message) = git(&["log", "-1", "--format=%B", id]) else {
+            continue;
+        };
+        for f in msg::check_with(&message, signoff, tracker) {
+            total += 1;
+            let label = match f.tier {
+                rules::Tier::Mechanical => {
+                    blocking = true;
+                    "flag"
+                }
+                _ => "warn",
+            };
+            println!("{label}: {}: {} — {}", &id[..9.min(id.len())], f.rule, f.detail);
+        }
+    }
+    if total == 0 {
+        println!("msg: {} commit(s), nothing to report", ids.len());
+        process::exit(0);
     }
     process::exit(verdict(blocking, mode));
 }
@@ -975,10 +1047,18 @@ fn main() {
         Some("install-hooks") => run_install_hooks(&args[1..]),
         _ => {}
     }
-    // The lanes land by the build sequence on host-lint#22 (msg, commit,
-    // series, mail, build, checklist, rules). Until a lane lands, every
-    // invocation is a usage error: the skeleton never exits 0, so it cannot
-    // report a clean verdict it did not earn (no-hollow-green).
-    eprintln!("host-lint-ffmpeg: only `rules` is implemented; the lanes land by the build sequence on host-lint#22");
+    // Lanes that run today are listed with their usage; the ones still on
+    // the build sequence say so. A bare invocation is a usage error and
+    // never exits 0, so it cannot report a clean verdict it did not earn.
+    eprintln!("host-lint-ffmpeg <lane> [args]");
+    eprintln!("  rules                      the rule registry (RULES.md is generated from it)");
+    eprintln!("  msg <file|range> [--signoff] [--require-tracker]");
+    eprintln!("                             commit-message lane; a range checks every commit");
+    eprintln!("  diff [<file>]              added-line lane; a unified diff on stdin without a file");
+    eprintln!("  series <range> [--repo d]  series lane; ordering, version bumps, registration obligations");
+    eprintln!("  mail <dir> [--maintainers f]  mailing-list lane over format-patch output");
+    eprintln!("  checklist                  the submission checklist");
+    eprintln!("  receipt --base <sha> --head <sha> [--record leg=result]... | --show <head>");
+    eprintln!("  config | branch | forge | install-hooks");
     process::exit(2);
 }

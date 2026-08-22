@@ -97,7 +97,18 @@ fn provided_by(commits: &[Commit], upto: usize, needle: &str) -> bool {
 }
 
 /// Check the series.
+///
+/// The `check` form knows nothing of the base; `check_over` exempts files
+/// the base tree already provides, which is every upstream header and
+/// source a series merely consumes. Without the exemption the provider
+/// rule flags `libavutil/mem.h` and friends once per consumer, drowning
+/// the real ordering findings.
+#[cfg_attr(not(test), allow(dead_code))] // the base-less form is the tests' API
 pub fn check(commits: &[Commit]) -> Vec<Finding> {
+    check_over(commits, &std::collections::HashSet::new())
+}
+
+pub fn check_over(commits: &[Commit], base_files: &std::collections::HashSet<String>) -> Vec<Finding> {
     let mut out = Vec::new();
 
     for (i, c) in commits.iter().enumerate() {
@@ -112,6 +123,9 @@ pub fn check(commits: &[Commit]) -> Vec<Finding> {
                 continue;
             }
             let ours = inc.starts_with("libav") || inc.starts_with("libsw");
+            if ours && base_files.contains(inc.as_str()) {
+                continue;
+            }
             if ours && !provided_by(commits, i, &inc) {
                 out.push(Finding {
                     rule: "series-provider-before-consumer",
@@ -126,6 +140,15 @@ pub fn check(commits: &[Commit]) -> Vec<Finding> {
         // original check missed: a build that lists foo.o before foo.c exists is
         // broken at exactly the commit a bisect will land on.
         for obj in added_makefile_objects(&c.diff) {
+            let in_base = |o: &str| {
+                base_files.contains(o)
+                    || base_files
+                        .iter()
+                        .any(|p| p.rsplit('/').next() == Some(o))
+            };
+            if in_base(&obj) {
+                continue;
+            }
             if !provided_by(commits, i, &obj) {
                 out.push(Finding {
                     rule: "series-provider-before-consumer",
@@ -246,9 +269,17 @@ fn registration_kind(diff: &str) -> Option<&'static str> {
 }
 
 fn adds_avpriv(diff: &str) -> bool {
+    // Definition-shaped only: an added line that begins at column zero and
+    // mentions avpriv_ is a top-level definition or header declaration. A
+    // call site is indented inside a function body, and flagging every
+    // consumer for the defining commit's missing bump is noise that buries
+    // the one finding that matters.
     diff.lines()
         .filter(|l| l.starts_with('+') && !l.starts_with("+++"))
-        .any(|l| l.contains("avpriv_"))
+        .any(|l| {
+            let body = &l[1..];
+            !body.starts_with(' ') && !body.starts_with('\t') && body.contains("avpriv_")
+        })
 }
 
 fn touches_version_header(c: &Commit) -> bool {
