@@ -75,6 +75,16 @@ Run the binary against the target and act on results:
 2. Run `host-lint` with appropriate flags
 3. If exits 0, clean. If exits 1, a confirmed tell — report matches to the user. If exits 3, a bare-numeral warning (advisory) — reconsider the flagged numbered labels and rewrite them with descriptive names where it improves the text, but it does not block.
 
+## Sanctioned vocabulary (LEXICON)
+
+When the prose or strict lanes flag a phrase that is genuine project vocabulary — a domain term the trove catalog does not know — declare it so the masker clears exactly that phrase:
+
+```
+host-lint lexicon add "<phrase>" [--url <tracker-ref>]
+```
+
+A declaration is a report, not a settlement: it records that the shared grammar over-fired on this corpus, and it is owed upstream. The declaration covers the phrase only — it is not a waiver for the line or the file — and the three refusals hold: no bare-numeral master key, no declaring a phrase that is itself a tell, no declaration without a tracker ref. The full command reference lives in the README. The template carries no LEXICON: inherited spine text that trips a rule is reworded upstream, never declared away.
+
 ## Exit codes
 
 - `0` — clean, no tells found
